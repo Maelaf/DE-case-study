@@ -1,0 +1,33 @@
+{
+  "date_config": {
+    "begin_date": "2024-10-16",
+    "end_date": "2024-10-18",
+    "time_increment": "+P1DT00H00M00S"
+  },
+  "locations": [
+    {
+      "name": "amsterdam",
+      "sensors": [
+        "temperature_2m",
+        "relative_humidity_2m",
+        "wind_speed_10m",
+        "surface_pressure",
+        "cloud_cover"
+      ]
+    },
+    {
+      "name": "london",
+      "sensors": [
+        "temperature_2m",
+        "relative_humidity_2m",
+        "wind_speed_10m",
+        "surface_pressure",
+        "cloud_cover"
+      ]
+    }
+  ],
+  "local_storage": {
+    "raw_output_dir": "data/raw/{location_name}/%Y%m%d.parquet",
+    "structured_output_dir": "data/structured/{location_name}/%Y%m.parquet"
+  }
+}

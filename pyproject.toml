@@ -1,0 +1,10 @@
+[project]
+name = "weather-data-pipeline"
+version = "0.1.0"
+description = "Weather data ingestion pipeline for Open-Meteo API"
+requires-python = ">=3.11"
+dependencies = [
+    "pandas>=2.0.0",
+    "pydantic>=2.0.0",
+    "requests>=2.31.0",
+]
