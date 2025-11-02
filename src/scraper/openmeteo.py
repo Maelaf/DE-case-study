@@ -1,18 +1,4 @@
 # # Add your imports here
-
-
-# # Add any utility functions here if needed
-
-
-# def scrape():
-#     # Implement the API scrape logic here
-#     # 1. Load tasks.json to get the list of dates and locations to scrape
-#     # 2. Fetch data from Open-Meteo Archive API for each task
-#     # 3. Convert API response to LONG format (timestamp, location, sensor_name, value)
-#     # 4. Write daily parquet files to raw_output_dir
-#     raise NotImplementedError
-
-
 import json
 import logging
 import time
@@ -22,6 +8,9 @@ from typing import Dict, List
 
 import pandas as pd
 import requests
+
+# # Add any utility functions here if needed
+
 
 
 OPEN_METEO_URL = "https://archive-api.open-meteo.com/v1/archive"
@@ -58,6 +47,7 @@ def fetch_day(location: str, date_str: str, sensors: List[str]) -> Dict:
         "hourly": ",".join(sensors),
         "timezone": "UTC",
     }
+    
 
     response = requests.get(OPEN_METEO_URL, params=params, timeout=60)
     response.raise_for_status()
@@ -76,6 +66,7 @@ def json_to_long(df_json: Dict, location: str) -> pd.DataFrame:
 
     # Normalize timestamp to UTC (as naive datetime for parquet compatibility)
     wide["timestamp"] = pd.to_datetime(wide["time"], utc=True)
+    
     wide = wide.drop(columns=["time"])
 
     # Melt to long
@@ -86,10 +77,11 @@ def json_to_long(df_json: Dict, location: str) -> pd.DataFrame:
     long_df = long_df[["timestamp", "location", "sensor_name", "value"]]
     # Convert timezone-aware to naive UTC (datetime64[ms] doesn't support timezone-aware)
     # Convert each timestamp: ensure UTC, then make naive
-    long_df["timestamp"] = long_df["timestamp"].apply(
-        lambda x: x.tz_convert("UTC").replace(tzinfo=None) if x.tz is not None else x
-    )
-    long_df["timestamp"] = long_df["timestamp"].astype("datetime64[ms]")
+    # long_df["timestamp"] = long_df["timestamp"].apply(
+    #     lambda x: x.tz_convert("UTC").replace(tzinfo=None) if x.tz is not None else x
+    # )
+    # long_df["timestamp"] = long_df["timestamp"].astype("datetime64[ms]")
+    # long_df.info()
 
     return long_df
 
@@ -107,7 +99,15 @@ def write_parquet(df: pd.DataFrame, path_str: str) -> None:
         ) from e
 
 
+
 def scrape():
+#     # Implement the API scrape logic here
+#     # 1. Load tasks.json to get the list of dates and locations to scrape
+#     # 2. Fetch data from Open-Meteo Archive API for each task
+#     # 3. Convert API response to LONG format (timestamp, location, sensor_name, value)
+#     # 4. Write daily parquet files to raw_output_dir
+#     raise NotImplementedError
+
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     repo_root = Path(__file__).resolve().parents[2]  # project root
     config = load_tasks(repo_root)
@@ -118,6 +118,7 @@ def scrape():
     total = 0
     skipped = 0
     errors = 0
+    errored = []
 
     for task in tasks:
         location = task["location"]
@@ -125,10 +126,10 @@ def scrape():
         raw_path = task["raw_path"]
 
         # Idempotency: skip if file exists
-        if Path(raw_path).exists():
-            skipped += 1
-            logging.info("Skip existing file: %s", raw_path)
-            continue
+        # if Path(raw_path).exists():
+        #     skipped += 1
+        #     logging.info("Skip existing file: %s", raw_path)
+        #     continue
 
         try:
             sensors = get_sensors_for_location(locations_cfg, location)
@@ -140,13 +141,14 @@ def scrape():
             total += 1
             logging.info("Wrote %s (%d rows)", raw_path, len(df_long))
         except requests.HTTPError as e:
+            errored.append(date_str)
             errors += 1
             logging.error("HTTP error for %s %s: %s", location, date_str, e)
         except Exception as e:
             errors += 1
             logging.error("Failed for %s %s: %s", location, date_str, e)
 
-    logging.info("Scrape done. wrote=%d skipped=%d errors=%d", total, skipped, errors)
+    logging.info("Scrape done. wrote=%d skipped=%d errors=%d errored=%s", total, skipped, errors, errored)
 
 
 if __name__ == "__main__":
