@@ -5,6 +5,7 @@ from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Tuple
+import pyarrow as pa
 
 import pandas as pd
 
@@ -58,7 +59,7 @@ def  read_raw_long(paths: List[str]) -> pd.DataFrame:
     if missing:
         raise ValueError(f"Missing columns in raw data: {missing}")
     # Normalize timestamp to ms precision, naive UTC
-    df_all["timestamp"] = pd.to_datetime(df_all["timestamp"], utc=False).astype("datetime64[ms]")
+    # df_all["timestamp"] = pd.to_datetime(df_all["timestamp"], utc=True).astype("datetime64[ms]")
     return df_all
 
 
@@ -77,7 +78,7 @@ def  long_to_wide(df_long: pd.DataFrame) -> pd.DataFrame:
     # Flatten columns (pivot creates MultiIndex on columns)
     wide.columns.name = None
     # Ensure timestamp dtype and ordering
-    wide["timestamp"] = pd.to_datetime(wide["timestamp"], utc=False).astype("datetime64[ms]")
+    # wide["timestamp"] = pd.to_datetime(wide["timestamp"], utc=False).astype("datetime64[ms]")
     # Order columns: timestamp, location, sensors (alphabetical)
     fixed_cols = ["timestamp", "location"]
     sensor_cols = sorted([c for c in wide.columns if c not in fixed_cols])
@@ -94,12 +95,14 @@ def  merge_with_historical(wide_new: pd.DataFrame, structured_path: str) -> pd.D
                 hist = hist.loc[:, ~hist.columns.duplicated()]
             # Normalize timestamp dtype for safe concat
             # Handle timezone-aware timestamps from historical data
-            hist["timestamp"] = pd.to_datetime(hist["timestamp"], utc=True)
+            # hist["timestamp"] = pd.to_datetime(hist["timestamp"], utc=True)
             # Convert timezone-aware to naive UTC (same approach as scraper)
-            hist["timestamp"] = hist["timestamp"].apply(
-                lambda x: x.tz_convert("UTC").replace(tzinfo=None) if x.tz is not None else x
-            )
-            hist["timestamp"] = hist["timestamp"].astype("datetime64[ms]")
+            # hist["timestamp"] = hist["timestamp"].apply(
+            #     lambda x: x.tz_convert("UTC").replace(tzinfo=None) if x.tz is not None else x
+            # )
+            # hist["timestamp"] = hist["timestamp"].astype("datetime64[ms]")
+            hist["timestamp"] = hist["timestamp"].dt.round("ms")
+
         except Exception as e:
             logging.error("Failed reading historical parquet %s: %s", structured_path, e)
             hist = pd.DataFrame(columns=wide_new.columns)
@@ -133,13 +136,17 @@ def  merge_with_historical(wide_new: pd.DataFrame, structured_path: str) -> pd.D
     fixed_cols = ["timestamp", "location"]
     sensor_cols = sorted([c for c in combined.columns if c not in fixed_cols])
     combined = combined[fixed_cols + sensor_cols]
+    
     return combined
 
 
 def  write_structured(df: pd.DataFrame, path_str: str) -> None:
     path = Path(path_str)
     path.parent.mkdir(parents=True, exist_ok=True)
-    df.to_parquet(path, index=False)
+    
+    # df.to_parquet(path, index=False)
+    table = pa.Table.from_pandas(df, preserve_index=False)   # preserve_index as needed
+    pa.parquet.write_table(table, path, coerce_timestamps="ms")
 
 
 def transform():
