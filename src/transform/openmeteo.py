@@ -82,7 +82,9 @@ def  long_to_wide(df_long: pd.DataFrame) -> pd.DataFrame:
     # Order columns: timestamp, location, sensors (alphabetical)
     fixed_cols = ["timestamp", "location"]
     sensor_cols = sorted([c for c in wide.columns if c not in fixed_cols])
-    return wide[fixed_cols + sensor_cols]
+    wide = wide[fixed_cols + sensor_cols]
+    wide.rename(columns = {'dew_point_2m':'dew_point'}, inplace= True)
+    return wide
 
 
 def  merge_with_historical(wide_new: pd.DataFrame, structured_path: str) -> pd.DataFrame:
