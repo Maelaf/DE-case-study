@@ -35,6 +35,9 @@ def get_sensors_for_location(config_locations: List[Dict], location_name: str) -
 
 
 def fetch_day(location: str, date_str: str, sensors: List[str]) -> Dict:
+    
+    MAX_RETRIES = 3
+    RETRY_DELAY = 2 # seconds
     coords = LOCATION_COORDS.get(location)
     if not coords:
         raise ValueError(f"Coordinates missing for location: {location}")
@@ -48,9 +51,17 @@ def fetch_day(location: str, date_str: str, sensors: List[str]) -> Dict:
         "timezone": "UTC",
     }
     
-
-    response = requests.get(OPEN_METEO_URL, params=params, timeout=60)
-    response.raise_for_status()
+    for attempt in range(MAX_RETRIES):
+        try:
+            response = requests.get(OPEN_METEO_URL, params=params, timeout=60)
+            response.raise_for_status()
+            return response.json()
+        except requests.HTTPError as e:
+            raise requests.HTTPError(f"HTTP error for {location} {date_str}: {e}") from e
+        except Exception as e:
+            if attempt == MAX_RETRIES - 1:
+                raise
+            time.sleep(RETRY_DELAY)
     return response.json()
 
 
@@ -126,10 +137,10 @@ def scrape():
         raw_path = task["raw_path"]
 
         # Idempotency: skip if file exists
-        # if Path(raw_path).exists():
-        #     skipped += 1
-        #     logging.info("Skip existing file: %s", raw_path)
-        #     continue
+        if Path(raw_path).exists():
+            skipped += 1
+            logging.info("Skip existing file: %s", raw_path)
+            continue
 
         try:
             sensors = get_sensors_for_location(locations_cfg, location)
@@ -144,6 +155,12 @@ def scrape():
             errored.append(date_str)
             errors += 1
             logging.error("HTTP error for %s %s: %s", location, date_str, e)
+            
+        except RuntimeError as e:  # catches fetch_day retry failure
+            errors += 1
+            logging.error("Failed to fetch data for %s %s after retries: %s", location, date_str, e)
+
+        
         except Exception as e:
             errors += 1
             logging.error("Failed for %s %s: %s", location, date_str, e)
