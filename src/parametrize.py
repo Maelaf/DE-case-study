@@ -99,6 +99,7 @@ def parametrize():
     dates = build_date_range(
         config.date_config.begin_date, config.date_config.end_date, step
     )
+    
 
     tasks: List[Dict] = []
     for loc in config.locations:

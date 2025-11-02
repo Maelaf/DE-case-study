@@ -12,7 +12,8 @@
         "relative_humidity_2m",
         "wind_speed_10m",
         "surface_pressure",
-        "cloud_cover"
+        "cloud_cover",
+        "dew_point_2m"
       ]
     },
     {
@@ -22,7 +23,8 @@
         "relative_humidity_2m",
         "wind_speed_10m",
         "surface_pressure",
-        "cloud_cover"
+        "cloud_cover",
+        "dew_point_2m"
       ]
     }
   ],
